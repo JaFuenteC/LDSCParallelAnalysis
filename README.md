@@ -5,7 +5,7 @@ The paLDSC function allows to identify the number of non-spurious dimensions in 
 The mandatory arguments of the paLDSC function are S_Stand and V_Stand, corresponding with the standardized genetic covariance and sampling distribution matrices from the LDSC output (S and V matrices, respectively, which can be obtained by setting stand = TRUE in the LDSC function). 
 The following optional arguments are also implemented:
 
-**1. r:** defines the number of replications for the Monte-Carlo simulations of null correlation matrices (500 by default).
+1. r: defines the number of replications for the Monte-Carlo simulations of null correlation matrices (500 by default).
 
 2. p: defines the percentile for the simulated eigen-values (.95 by default).
 
