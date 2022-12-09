@@ -1,4 +1,4 @@
-#paLDSC: Parallel Analysis based on Multivariate Linkage Disequilibrium Score Regression (LDSC)
+# paLDSC: Parallel Analysis based on Multivariate Linkage Disequilibrium Score Regression (LDSC)
 
 The paLDSC function allows to identify the number of non-spurious dimensions in exploratory genomic factor analysis. The method adapts a classic method known as Parallel Analysis (Horn, 1965) to the genomic spaces. The method compares the eigenvalues generated from the eigen decomposition of the LDSC-derived genetic correlation matrix to the eigenvalues of a Monte-Carlo simulated null correlation matrix with random noise drawn from the multivariate LDSC sampling distribution. The suggested number of components to be extracted corresponds with the last component with a larger eigenvalue than 95% of the eigen values observed for the corresponding component from the null correlation matrix.
 The mandatory arguments of the paLDSC function are S_Stand and V_Stand, corresponding with the standardized genetic covariance and sampling distribution matrices from the LDSC output (S and V matrices, respectively, which can be obtained by setting stand = TRUE in the LDSC function). 
