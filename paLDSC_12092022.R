@@ -1,6 +1,6 @@
 #--------------------------------------------------------------------------------------------------------------------------
 # Author: Javier de la Fuente
-# Date: 12-09-2022
+# Date: 27-03-2022
 #
 # Filename: paLDSC_(Parallel_Analysis_LDSC).R
 #
@@ -10,10 +10,11 @@
 # the multivariate LDSC sampling distribution V. The suggested number of components to be extracted
 # corresponds with the last component with a larger eigenvalue than the same component in the null
 # correlation matrix.
-# The mandatory arguments of the function are S_Stand and V_Stand, corresponding
-# with the standardized genetic covariance and sampling distribution matrices from the LDSC output (S and V matrices, 
+# The mandatory arguments of the function are S and V, corresponding
+# with the STANDARDIZED genetic covariance and its associated STANDARDIZED sampling distribution matrix from the LDSC output (S and V matrices, 
 # respectively, which can be obtained by setting stand = TRUE in the LDSC function). 
 # The following optional arguments are also implemented:
+#  - STD: wether input matrices are standardized (genetic correlations matrix) or not (genetic covariance matrix); (T by default).
 #  - r: defines the number of replications for the Monte-Carlo simulations of null correlation matrices (500 by default).
 #  - p: defines the percentile for the simulated eigen-values.
 #  - diag: defines whether diagonallized PA should be conducted (FALSE by default). Diagonallized PA assumes uncorrelated sampling
@@ -30,7 +31,7 @@
 #  - save.pdf: whether the scree-plots derived from the PA function should be saved into a .pdf file.
 #--------------------------------------------------------------------------------------------------------------------------
 
-paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, save.pdf = F, diag = F, fa = F,
+paLDSC <- function(S = S, V = V, STD = T, r = NULL, p = NULL, save.pdf = F, diag = F, fa = F,
                    fm = NULL, nfactors = NULL) {
   list.of.packages <- c("ggplot2", "MASS","matrixStats","gdata","psych","matrixStats","egg","ggpubr","Matrix")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -50,17 +51,21 @@ paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, sav
   }
   
   #---- Get Dimensions of Matrices ----#
-  k=dim(S_Stand)[1] #k phenotypes
+  k=dim(S)[1] #k phenotypes
   kstar=k*(k+1)/2 #kstar unique variances/covariances
-  Svec=lowerTriangle(S_Stand,diag=T) #vectorize S
-  SNULL=(0*S_Stand)
-  diag(SNULL)=1
+  Svec=lowerTriangle(S,diag=T) #vectorize S
+  SNULL=(0*S)
+  if (STD==F){
+  diag(SNULL)=diag(S)
+  }
+  if (STD == T) {
+  diag(SNULL)=1  
+  }
   SNULLvec=lowerTriangle(SNULL,diag=T) #vectorize S null
-  
   #---- PCA  Parallel Analysis ----#
   EIG=as.data.frame(matrix(NA,nrow=k,ncol=r))
   for (i in 1:r) {
-    Sample_null=mvrnorm(n=1,mu=SNULLvec,Sigma=V_Stand) #Simulate a null vectorized correlation matrtix with noise drawn from the multivariate sample distribution of S
+    Sample_null=mvrnorm(n=1,mu=SNULLvec,Sigma=V) #Simulate a null vectorized correlation matrtix with noise drawn from the multivariate sample distribution of S
     Sample_null_M=matrix(0,ncol=k,nrow=k) #Turn it back into a matrix
     lowerTriangle(Sample_null_M,diag=T)=Sample_null
     upperTriangle(Sample_null_M,diag=F)=upperTriangle(t(Sample_null_M))
@@ -69,7 +74,7 @@ paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, sav
   }
   #---- Find the p percentile for PCA PA and observed eigenvalues ----#
   Parallel_values=rowQuantiles(as.matrix(EIG),probs=p)
-  Observed_PCA_values=eigen(S_Stand)$values
+  Observed_PCA_values=eigen(S)$values
   #Create data frame from observed eigenvalue data
   obs = data.frame(Observed_PCA_values)
   obs$type = c('Observed Data')
@@ -93,8 +98,8 @@ paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, sav
   nfactobsPA <- which(obsPA < 0)[1]-1
   
   if (diag == T) { 
-    Vd_stand=0*V_Stand
-    diag(Vd_stand)=diag(V_Stand)
+    Vd_stand=0*V
+    diag(Vd_stand)=diag(V)
     #---- PCA Diagonalized Parallel Analysis ----#
     EIGd=as.data.frame(matrix(NA,nrow=k,ncol=r))
     for (i in 1:r) {
@@ -127,7 +132,7 @@ paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, sav
   
   #--- If eigenvalues from FA are required ---#
   if (fa == T) {
-    Ssmooth<-as.matrix((nearPD(S_Stand, corr = T))$mat) #Smooth S_Stand matrix
+    Ssmooth<-as.matrix((nearPD(S, corr = T))$mat) #Smooth S matrix
     Observed_FA_values=fa(Ssmooth, fm = fm, nfactors = nfactors,SMC = FALSE, warnings = FALSE, rotate = "none")$values
     #Create data frame for observed FA eigenvalue data
     obsFA = data.frame(Observed_FA_values)
@@ -138,7 +143,7 @@ paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, sav
     #---- FA Parallel Analysis ----#
     EIGfa=as.data.frame(matrix(NA,nrow=k,ncol=r))
     for (i in 1:r) {
-      Sample_null=mvrnorm(n=1,mu=SNULLvec,Sigma=V_Stand) #Simulate a null vectorized correlation matrtix with noise drawn from the multivariate sample distribution of S
+      Sample_null=mvrnorm(n=1,mu=SNULLvec,Sigma=V) #Simulate a null vectorized correlation matrtix with noise drawn from the multivariate sample distribution of S
       Sample_null_M=matrix(0,ncol=k,nrow=k) #Turn it back into a matrix
       lowerTriangle(Sample_null_M,diag=T)=Sample_null
       upperTriangle(Sample_null_M,diag=F)=upperTriangle(t(Sample_null_M))
@@ -233,6 +238,28 @@ paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, sav
     geom_vline(xintercept = nfactobsPA, linetype = 'dashed')+
     geom_hline(yintercept = 0)+
     apatheme
+  
+  if (STD == F){
+    #---- Scree plot diagonalized PCA PA ----#
+    pPA = ggplot(eigendatPA, aes(x=num, y=eigenvalue, shape=type)) +
+      geom_line()+
+      geom_point(size=3)+
+      scale_y_continuous(name='PCA Eigenvalue')+
+      scale_x_continuous(name='Component Number', breaks=min(1:k):max(1:k))+
+      scale_shape_manual(values=c(2,17)) +
+      geom_vline(xintercept = nfactPA, linetype = 'dashed')+
+      apatheme
+    #---- Scree plot Observed minus diagonalized PCA PA ----#
+    pobsPA = ggplot(obsPA, aes(x=num, y=eigenvalue, shape=type)) +
+      geom_line()+
+      geom_point(size=3)+
+      scale_y_continuous(name='Difference in PCA Eigenvalues')+
+      scale_x_continuous(name='Component Number', breaks=min(1:k):max(1:k))+
+      scale_shape_manual(values=c(17)) +
+      geom_vline(xintercept = nfactobsPA, linetype = 'dashed')+
+      geom_hline(yintercept = 0)+
+      apatheme
+  }
   
   if (diag == T){
     #---- Scree plot diagonalized PCA PA ----#
@@ -359,6 +386,5 @@ paLDSC <- function(S_Stand = S_Stand, V_Stand = V_Stand, r = NULL, p = NULL, sav
 }
 
 #---- Example loading any LDSCoutput ----#
-paLDSC(S_Stand = LDSCoutputfull$S_Stand, V_Stand = LDSCoutputfull$V_Stand, r = 100, p = .95, save.pdf = T, diag = T)
-
+paLDSC(S = LDSCoutputfull$S, V = LDSCoutputfull$V, r = 100, p = .95, save.pdf = T, diag = T)
 
